@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WheelRev — Car Showroom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+
+<header>
+  <div class="logo" onclick="showHome()" style="cursor:pointer;"><span class="dot"></span> WheelRev</div>
+  <nav>
+    <a onclick="showListing()">Browse</a>
+    <a onclick="openModal()">Compare (<span id="navCompareCount">0</span>)</a>
+    <a id="backToHome" onclick="showHome()">&larr; Home</a>
+  </nav>
+  <div class="toggle-wrap">
+    <span class="mono" id="modeLabel">Daily Drivers</span>
+    <div class="toggle" onclick="toggleMode()">
+      <div class="thumb"></div>
+      <div class="labels"><span>Daily</span><span>Private</span></div>
+    </div>
+  </div>
+  <button class="hamburger" id="hamburgerBtn" onclick="toggleMobileMenu()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a onclick="showHome(); closeMobileMenu();">Home</a>
+  <a onclick="showListing(); closeMobileMenu();">Browse</a>
+  <a onclick="openModal(); closeMobileMenu();">Compare (<span id="navCompareCountMobile">0</span>)</a>
+</div>
+
+<div id="homeView">
+
+<section class="hero">
+  <div class="hero-carousel" id="heroCarousel"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <div class="eyebrow" id="heroEyebrow">Every car has a lane</div>
+    <h1 id="heroTitle">Find the car that fits your road.</h1>
+    <p class="sub" id="heroSub">Browse everyday favorites from Toyota, Ford, Honda and Tesla — or step into the private collection for Ferrari, Bentley, Rolls-Royce and Lexus.</p>
+    <div class="searchbar">
+      <select id="searchBrand" onchange="applyFilters()">
+        <option value="">All brands</option>
+      </select>
+      <select id="searchType" onchange="applyFilters()">
+        <option value="">Any body type</option>
+      </select>
+      <select id="searchPrice" onchange="applyFilters()">
+        <option value="">Any price</option>
+        <option value="0-40000">Under $40,000</option>
+        <option value="40000-80000">$40,000 – $80,000</option>
+        <option value="80000-150000">$80,000 – $150,000</option>
+        <option value="150000-99999999">$150,000+</option>
+      </select>
+      <button onclick="searchFromHome()">Search</button>
+    </div>
+  </div>
+</section>
+
+<div class="ticker-wrap">
+  <div class="ticker" id="brandTicker"></div>
+</div>
+
+<section class="stats-strip" id="statsStrip">
+  <div class="stat">
+    <div class="stat-num mono" data-target="200" data-suffix="+">0</div>
+    <div class="stat-label">Vehicles listed</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num mono" data-target="11" data-suffix="">0</div>
+    <div class="stat-label">Brands on the lot</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num mono" data-target="43" data-suffix="">0</div>
+    <div class="stat-label">Full photo galleries</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num mono" id="statPriceSpan">$0 – $0</div>
+    <div class="stat-label">Price range covered</div>
+  </div>
+</section>
+
+<div class="section-head reveal">
+  <div class="kicker">Shop by brand</div>
+  <h2>Eleven brands, one lot.</h2>
+  <p>Tap a brand to jump straight to its lineup — from everyday Toyota and Honda to the private collection names.</p>
+</div>
+<div class="brand-grid" id="brandGrid"></div>
+
+<div class="section-head reveal">
+  <div class="kicker">Worth a second look</div>
+  <h2>Flagship picks.</h2>
+  <p>A few of the most talked-about cars on the lot right now.</p>
+</div>
+<div class="flagship-row" id="flagshipRow"></div>
+
+<div class="tier-split reveal" id="tierSplit"></div>
+
+<div class="cta-strip reveal">
+  <div>
+    <h3>Not sure where to start?</h3>
+    <p>Browse the full lot with filters for price, body type and brand.</p>
+  </div>
+  <button onclick="showListing()">View full inventory</button>
+</div>
+
+</div><!-- /homeView -->
+
+<div id="listingView" style="display:none;">
+<div class="filterbar" id="filterbar">
+  <div class="chip active" data-brand="" onclick="setBrandChip(this)">All</div>
+  <div class="spacer"></div>
+  <div class="result-count" id="resultCount"></div>
+</div>
+
+<div class="grid" id="grid"></div>
+</div><!-- /listingView -->
+
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="panel" id="panel"></div>
+
+<div class="comparebar" id="comparebar">
+  <div class="slots" id="compareSlots"></div>
+  <button class="go" onclick="openModal()">Compare now</button>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2 class="display">Side by side</h2>
+    <div id="compareTableWrap"></div>
+  </div>
+</div>
+
+<footer>
+  <span>WheelRev — a showroom that knows the difference.</span>
+  <span class="mono">Photos are free stock images (not manufacturer photography) and may not always match the exact model. Prices shown are indicative starting MSRP and should be verified before publishing.</span>
+</footer>
+
+
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

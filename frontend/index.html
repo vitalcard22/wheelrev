@@ -1,148 +1,216 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-mode="daily">
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WheelRev — Car Showroom</title>
+<title>WheelRev — Two lanes. One lot.</title>
+<meta name="description" content="Browse 200 cars across 11 brands — everyday drivers and the private collection. Compare, estimate payments, and reserve online.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-
 <header>
-  <div class="logo" onclick="showHome()" style="cursor:pointer;"><span class="dot"></span> WheelRev</div>
+  <div class="logo" onclick="showHome()"><span class="dot"></span> WheelRev</div>
   <nav>
-    <a onclick="showListing()">Browse</a>
+    <a onclick="showListing()">Inventory</a>
     <a onclick="openModal()">Compare (<span id="navCompareCount">0</span>)</a>
-    <a onclick="openCheckout()">Cart (<span id="navCartCount">0</span>)</a>
-    <a id="backToHome" onclick="showHome()">&larr; Home</a>
+    <a onclick="openCheckout()">Reserved (<span id="navCartCount">0</span>)</a>
+    <a id="backToHome" onclick="showHome()">← Home</a>
   </nav>
   <div class="toggle-wrap">
     <span class="mono" id="modeLabel">Daily Drivers</span>
-    <div class="toggle" onclick="toggleMode()">
+    <div class="toggle" onclick="toggleMode()" role="button" tabindex="0" aria-label="Switch lane">
       <div class="thumb"></div>
       <div class="labels"><span>Daily</span><span>Private</span></div>
     </div>
   </div>
-  <button class="hamburger" id="hamburgerBtn" onclick="toggleMobileMenu()" aria-label="Menu">
-    <span></span><span></span><span></span>
-  </button>
+  <button class="hamburger" onclick="toggleMobileMenu()" aria-label="Menu"><span></span><span></span><span></span></button>
 </header>
 
 <div class="mobile-menu" id="mobileMenu">
   <a onclick="showHome(); closeMobileMenu();">Home</a>
-  <a onclick="showListing(); closeMobileMenu();">Browse</a>
+  <a onclick="showListing(); closeMobileMenu();">Inventory</a>
   <a onclick="openModal(); closeMobileMenu();">Compare (<span id="navCompareCountMobile">0</span>)</a>
-  <a onclick="openCheckout(); closeMobileMenu();">Cart (<span id="navCartCountMobile">0</span>)</a>
+  <a onclick="openCheckout(); closeMobileMenu();">Reserved (<span id="navCartCountMobile">0</span>)</a>
 </div>
 
 <div id="homeView">
 
-<section class="hero">
-  <div class="hero-carousel" id="heroCarousel"></div>
-  <div class="hero-overlay"></div>
-  <div class="hero-content">
-    <div class="eyebrow" id="heroEyebrow">Every car has a lane</div>
-    <h1 id="heroTitle">Find the car that fits your road.</h1>
-    <p class="sub" id="heroSub">Browse everyday favorites from Toyota, Ford, Honda and Tesla — or step into the private collection for Ferrari, Bentley, Rolls-Royce and Lexus.</p>
-    <div class="searchbar">
-      <select id="searchBrand" onchange="applyFilters()">
-        <option value="">All brands</option>
-      </select>
-      <select id="searchType" onchange="applyFilters()">
-        <option value="">Any body type</option>
-      </select>
-      <select id="searchPrice" onchange="applyFilters()">
-        <option value="">Any price</option>
-        <option value="0-40000">Under $40,000</option>
-        <option value="40000-80000">$40,000 – $80,000</option>
-        <option value="80000-150000">$80,000 – $150,000</option>
-        <option value="150000-99999999">$150,000+</option>
-      </select>
-      <button onclick="searchFromHome()">Search</button>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-stage" id="heroCarousel"></div>
+    <div class="hero-veil"></div>
+    <div class="shell">
+      <div class="eyebrow" id="heroEyebrow">200 cars · 11 brands · one lot</div>
+      <h1 id="heroTitle"><span class="ln"><span>Two lanes.</span></span><span class="ln"><span>One lot.</span></span></h1>
+      <p class="sub" id="heroSub">The everyday cars people actually buy, and the ones they photograph. Both are here — filter by what you need, estimate what you'd pay, reserve without a phone call.</p>
+      <div class="searchbar">
+        <select id="searchBrand" aria-label="Brand"><option value="">All brands</option></select>
+        <select id="searchType" aria-label="Body type"><option value="">Any body type</option></select>
+        <select id="searchPrice" aria-label="Price">
+          <option value="">Any price</option>
+          <option value="0-40000">Under $40,000</option>
+          <option value="40000-80000">$40,000 – $80,000</option>
+          <option value="80000-150000">$80,000 – $150,000</option>
+          <option value="150000-99999999">$150,000+</option>
+        </select>
+        <button onclick="searchFromHome()">Search inventory</button>
+      </div>
+    </div>
+    <div class="scroll-hint">Scroll</div>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee"><div class="marquee-track" id="brandTicker"></div></div>
+
+  <!-- STATS -->
+  <section class="stats" id="statsStrip">
+    <div class="stat"><div class="stat-num mono" data-target="200" data-suffix="">0</div><div class="stat-label">Cars in stock</div></div>
+    <div class="stat"><div class="stat-num mono" data-target="11" data-suffix="">0</div><div class="stat-label">Brands</div></div>
+    <div class="stat"><div class="stat-num mono" data-target="200" data-suffix="">0</div><div class="stat-label">Photo galleries</div></div>
+    <div class="stat"><div class="stat-num mono" id="statPriceSpan">$0 – $0</div><div class="stat-label">Price range</div></div>
+  </section>
+
+  <!-- TWO LANES -->
+  <div class="shell">
+    <div class="sect-head rv">
+      <div class="eyebrow">Pick your lane</div>
+      <h2>Same lot, two very different rooms.</h2>
+      <p>The toggle up top isn't decoration — it changes what's on the floor. Daily Drivers is the everyday lineup. Private Collection is the flagship room.</p>
+    </div>
+    <div class="lanes" id="tierSplit"></div>
+  </div>
+
+  <!-- BRANDS -->
+  <div class="shell">
+    <div class="sect-head rv">
+      <div class="eyebrow">Shop by brand</div>
+      <h2>Eleven badges on the floor.</h2>
+      <p>Tap any brand to jump straight to its lineup.</p>
+    </div>
+    <div class="brand-grid" id="brandGrid"></div>
+  </div>
+
+  <!-- FLAGSHIPS -->
+  <div class="shell">
+    <div class="sect-head rv">
+      <div class="eyebrow">Worth the detour</div>
+      <h2>Flagship picks.</h2>
+      <p>The cars people come in to see, whether or not they leave with one.</p>
     </div>
   </div>
-</section>
+  <div class="rail" id="flagshipRow"></div>
 
-<div class="ticker-wrap">
-  <div class="ticker" id="brandTicker"></div>
-</div>
-
-<section class="stats-strip" id="statsStrip">
-  <div class="stat">
-    <div class="stat-num mono" data-target="200" data-suffix="+">0</div>
-    <div class="stat-label">Vehicles listed</div>
+  <!-- HOW IT WORKS -->
+  <div class="shell">
+    <div class="sect-head rv">
+      <div class="eyebrow">How it works</div>
+      <h2>Three steps, no phone tag.</h2>
+      <p>Reserving online holds the conversation, not your money. Nothing is charged on this site.</p>
+    </div>
+    <div class="steps rv">
+      <div class="step"><div class="n">01</div><h4>Find it</h4><p>Filter 200 cars by brand, body type and price. Compare up to three side by side before you commit to anything.</p></div>
+      <div class="step"><div class="n">02</div><h4>Run the numbers</h4><p>Estimate a monthly payment on any car with your own down payment, term and rate. No sign-in, no credit pull.</p></div>
+      <div class="step"><div class="n">03</div><h4>Reserve it</h4><p>Send a reservation request with how you plan to pay. We reach out to arrange the test drive and paperwork.</p></div>
+    </div>
   </div>
-  <div class="stat">
-    <div class="stat-num mono" data-target="11" data-suffix="">0</div>
-    <div class="stat-label">Brands on the lot</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num mono" data-target="43" data-suffix="">0</div>
-    <div class="stat-label">Full photo galleries</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num mono" id="statPriceSpan">$0 – $0</div>
-    <div class="stat-label">Price range covered</div>
-  </div>
-</section>
 
-<div class="section-head reveal">
-  <div class="kicker">Shop by brand</div>
-  <h2>Eleven brands, one lot.</h2>
-  <p>Tap a brand to jump straight to its lineup — from everyday Toyota and Honda to the private collection names.</p>
-</div>
-<div class="brand-grid" id="brandGrid"></div>
-
-<div class="section-head reveal">
-  <div class="kicker">Worth a second look</div>
-  <h2>Flagship picks.</h2>
-  <p>A few of the most talked-about cars on the lot right now.</p>
-</div>
-<div class="flagship-row" id="flagshipRow"></div>
-
-<div class="tier-split reveal" id="tierSplit"></div>
-
-<div class="cta-strip reveal">
-  <div>
-    <h3>Not sure where to start?</h3>
-    <p>Browse the full lot with filters for price, body type and brand.</p>
+  <!-- ASSURANCES -->
+  <div class="shell">
+    <div class="sect-head rv">
+      <div class="eyebrow">Before you ask</div>
+      <h2>What you get either way.</h2>
+    </div>
+    <div class="assure rv">
+      <div><h4>Inspected before listing</h4><p>Every car on the floor is checked over and photographed as it actually sits. What you see is the car you get.</p></div>
+      <div><h4>Prices shown are prices quoted</h4><p>Starting MSRP is listed on every card. No hidden fees invented at the desk.</p></div>
+      <div><h4>No pressure to finance</h4><p>Cash, lease, dealer financing, or your own bank — tell us which and we work with it.</p></div>
+      <div><h4>Reserve costs nothing</h4><p>A reservation request holds a conversation, not a deposit. You can walk away at any point.</p></div>
+    </div>
   </div>
-  <button onclick="showListing()">View full inventory</button>
-</div>
+
+  <!-- FAQ -->
+  <div class="shell">
+    <div class="sect-head rv">
+      <div class="eyebrow">Questions</div>
+      <h2>The ones we get most.</h2>
+    </div>
+    <div class="faq rv" id="faqList"></div>
+  </div>
+
+  <!-- VISIT -->
+  <div class="shell">
+    <div class="sect-head rv">
+      <div class="eyebrow">Come see it</div>
+      <h2>Visit the lot.</h2>
+      <p>Photos are honest, but nothing replaces sitting in the thing.</p>
+    </div>
+    <div class="visit rv">
+      <div class="visit-panel">
+        <h3 style="font-size:22px; margin-bottom:6px;">WheelRev Showroom</h3>
+        <p style="color:var(--steel); font-size:14px; margin:0;">Walk-ins welcome. Test drives are easier if you reserve first.</p>
+        <div class="visit-rows">
+          <div class="visit-row"><div class="k">Address</div><div class="v">1420 Prospect Avenue<br>Cleveland, OH 44115</div></div>
+          <div class="visit-row"><div class="k">Weekdays</div><div class="v">9:00 AM – 7:00 PM</div></div>
+          <div class="visit-row"><div class="k">Saturday</div><div class="v">10:00 AM – 5:00 PM</div></div>
+          <div class="visit-row"><div class="k">Sunday</div><div class="v">Closed</div></div>
+          <div class="visit-row"><div class="k">Phone</div><div class="v">(216) 555-0142</div></div>
+          <div class="visit-row"><div class="k">Email</div><div class="v">hello@wheelrev.com</div></div>
+        </div>
+      </div>
+      <div class="visit-media" id="visitMedia"></div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="shell">
+    <div class="cta rv">
+      <div>
+        <h3>Still browsing?</h3>
+        <p>The full lot is one click away — 200 cars, every filter, no account needed.</p>
+      </div>
+      <button class="btn-beam" onclick="showListing()">Open inventory</button>
+    </div>
+  </div>
+
+  <footer>
+    <div class="shell fr">
+      <span>WheelRev — two lanes, one lot.</span>
+      <span>Photos are stock imagery. Prices are indicative starting MSRP and should be confirmed before purchase.</span>
+    </div>
+  </footer>
 
 </div><!-- /homeView -->
 
 <div id="listingView" style="display:none;">
-<div class="filterbar" id="filterbar">
-  <div class="chip active" data-brand="" onclick="setBrandChip(this)">All</div>
-  <div class="spacer"></div>
-  <div class="result-count" id="resultCount"></div>
+  <div class="filterbar" id="filterbar">
+    <div class="chip active" data-brand="" onclick="setBrandChip(this)">All</div>
+    <div class="spacer"></div>
+    <div class="result-count" id="resultCount"></div>
+  </div>
+  <div class="grid" id="grid"></div>
 </div>
-
-<div class="grid" id="grid"></div>
-</div><!-- /listingView -->
 
 <div class="overlay" id="overlay" onclick="closePanel()"></div>
 <div class="panel" id="panel"></div>
 
 <div class="comparebar" id="comparebar">
   <div class="slots" id="compareSlots"></div>
-  <button class="go" onclick="openModal()">Compare now</button>
+  <button class="go" onclick="openModal()">Compare</button>
 </div>
 
 <div class="cartbar" id="cartbar">
   <div class="slots" id="cartSlots"></div>
-  <button class="go cart-go" onclick="openCheckout()">Reserve now</button>
+  <button class="go" onclick="openCheckout()">Reserve</button>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <button class="close" onclick="closeModal()">&times;</button>
-    <h2 class="display">Side by side</h2>
+    <h2>Side by side</h2>
     <div id="compareTableWrap"></div>
   </div>
 </div>
@@ -150,23 +218,34 @@
 <div class="modal-overlay" id="checkoutOverlay">
   <div class="modal checkout-modal">
     <button class="close" onclick="closeCheckout()">&times;</button>
-
     <div id="checkoutForm">
-      <h2 class="display">Reserve your car</h2>
-      <p class="checkout-note">This sends a reservation request — no payment is collected here. A member of the team will follow up to complete the purchase.</p>
-      <div id="checkoutItems" class="checkout-items"></div>
-      <div class="checkout-total-row">
-        <span>Total</span>
-        <span class="mono" id="checkoutTotal"></span>
+      <h2>Reserve your car</h2>
+      <p class="checkout-note">This sends a reservation request. Nothing is charged here — we'll contact you to arrange the rest.</p>
+      <div id="checkoutItems"></div>
+      <div class="checkout-total-row"><span>Total</span><span class="mono" id="checkoutTotal"></span></div>
+
+      <div class="finance-calc">
+        <div class="finance-calc-head">Estimate your payment</div>
+        <div class="field-row">
+          <div class="field"><label>Down payment</label><input type="number" id="co_fc_down" min="0" oninput="updateCheckoutFinanceCalc()"></div>
+          <div class="field"><label>Term</label>
+            <select id="co_fc_term" onchange="updateCheckoutFinanceCalc()">
+              <option value="36">36 months</option><option value="48">48 months</option>
+              <option value="60" selected>60 months</option><option value="72">72 months</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Estimated APR (%)</label><input type="number" id="co_fc_apr" value="6.9" step="0.1" min="0" oninput="updateCheckoutFinanceCalc()"></div>
+        <div class="finance-result"><span>Estimated payment</span><span class="mono" id="co_fc_monthly">$0/mo</span></div>
+        <div class="finance-disclaimer">Estimate only, not a loan offer. Your actual rate depends on credit approval and lender terms.</div>
       </div>
 
       <div class="field"><label>Full name</label><input id="co_name" placeholder="Jane Smith"></div>
       <div class="field-row">
         <div class="field"><label>Email</label><input id="co_email" type="email" placeholder="you@example.com"></div>
-        <div class="field"><label>Phone (optional)</label><input id="co_phone" placeholder="(555) 123-4567"></div>
+        <div class="field"><label>Phone (optional)</label><input id="co_phone" placeholder="(216) 555-0142"></div>
       </div>
-      <div class="field">
-        <label>Financing preference</label>
+      <div class="field"><label>How you plan to pay</label>
         <select id="co_financing">
           <option value="">Not sure yet</option>
           <option value="cash">Paying in cash</option>
@@ -175,25 +254,17 @@
           <option value="own-financing">Bringing my own financing</option>
         </select>
       </div>
-      <div class="field"><label>Message (optional)</label><input id="co_message" placeholder="Anything else we should know?"></div>
+      <div class="field"><label>Anything else (optional)</label><input id="co_message" placeholder="Best time to reach you, trade-in, questions"></div>
       <div id="checkoutError" class="checkout-error"></div>
-      <button class="btn-primary checkout-submit" id="checkoutSubmitBtn" onclick="submitCheckout()">Submit reservation</button>
+      <button class="checkout-submit" id="checkoutSubmitBtn" onclick="submitCheckout()">Send reservation request</button>
     </div>
-
     <div id="checkoutSuccess" style="display:none;">
-      <h2 class="display">Request received</h2>
-      <p class="checkout-note">Thanks — someone from the team will reach out shortly to complete your reservation. No payment has been taken.</p>
-      <button class="btn-primary checkout-submit" onclick="closeCheckout()">Done</button>
+      <h2>Request received</h2>
+      <p class="checkout-note">Thanks — we'll reach out shortly to arrange the next step. Nothing has been charged.</p>
+      <button class="checkout-submit" onclick="closeCheckout()">Done</button>
     </div>
   </div>
 </div>
-
-<footer>
-  <span>WheelRev — a showroom that knows the difference.</span>
-  <span class="mono">Photos are free stock images (not manufacturer photography) and may not always match the exact model. Prices shown are indicative starting MSRP and should be verified before publishing.</span>
-</footer>
-
-
 
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>

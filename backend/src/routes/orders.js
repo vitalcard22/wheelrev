@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
+const { sendOrderEmails } = require('../lib/email');
 
 function requireAdmin(req, res, next) {
   const token = req.header('x-admin-token');
@@ -38,7 +39,17 @@ router.post('/', async (req, res) => {
       );
       created.push(result.rows[0].id);
     }
-    res.status(201).json({ ok: true, orderIds: created });
+
+    // Email sending never blocks or fails the order — if it errors, we log it
+    // and still tell the customer their reservation went through, since it did.
+    let emailResult = null;
+    try {
+      emailResult = await sendOrderEmails({ items, name, email, phone, financing, message });
+    } catch (err) {
+      console.error('Order email sending failed:', err.message);
+    }
+
+    res.status(201).json({ ok: true, orderIds: created, emailSent: emailResult ? emailResult.sent : false });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -119,19 +119,21 @@ function renderGrid(){
     const inCompare = compareIds.includes(c.id);
     const inCart = cartIds.includes(c.id);
     return `
-    <div class="card" style="transition-delay:${Math.min(i%12,12)*40}ms" onclick="openPanel('${c.id}')">
+    <div class="card" style="transition-delay:${Math.min(i%12,12)*45}ms" onclick="openPanel('${c.id}')">
       <div class="art">${carPhoto(c)}</div>
-      <div class="brandline">
-        <span class="brand">${c.brand}</span>
-        <span class="badge">${c.type}</span>
-      </div>
-      <h3>${c.model}</h3>
-      <div class="meta">${c.year} &middot; ${c.hp} hp &middot; ${c.drivetrain}</div>
-      <div class="priceline">
-        <div class="price">${fmtPrice(c.price)}<br><small>starting MSRP</small></div>
-        <div class="card-actions">
-          <button class="cart-btn ${inCart?'on':''}" onclick="event.stopPropagation(); toggleCart('${c.id}')" title="Reserve this car">${inCart? '✓ Reserved' : 'Reserve'}</button>
-          <button class="compare-btn ${inCompare?'on':''}" onclick="event.stopPropagation(); toggleCompare('${c.id}')">${inCompare? '✓ Added' : '+ Compare'}</button>
+      <div class="body">
+        <div class="brandline">
+          <span class="brand">${c.brand}</span>
+          <span class="badge">${c.type}</span>
+        </div>
+        <h3>${c.model}</h3>
+        <div class="meta">${c.year} &middot; ${c.hp} hp &middot; ${c.drivetrain}</div>
+        <div class="priceline">
+          <div class="price">${fmtPrice(c.price)}<small>Starting MSRP</small></div>
+          <div class="card-actions">
+            <button class="cart-btn ${inCart?'on':''}" onclick="event.stopPropagation(); toggleCart('${c.id}')">${inCart? '✓ Reserved' : 'Reserve'}</button>
+            <button class="compare-btn ${inCompare?'on':''}" onclick="event.stopPropagation(); toggleCompare('${c.id}')">${inCompare? '✓ Added' : 'Compare'}</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -341,10 +343,35 @@ function openCheckout(){
       <span class="mono">${fmtPrice(c.price)}</span>
     </div>`).join('');
   document.getElementById('checkoutTotal').textContent = fmtPrice(total);
+  document.getElementById('co_fc_down').value = Math.round(total*0.1);
   document.getElementById('checkoutForm').style.display = 'block';
   document.getElementById('checkoutSuccess').style.display = 'none';
   document.getElementById('checkoutError').textContent = '';
   document.getElementById('checkoutOverlay').classList.add('show');
+  updateCheckoutFinanceCalc();
+}
+function updateCheckoutFinanceCalc(){
+  const cars = cartIds.map(id=>CARS.find(x=>x.id===id));
+  const total = cars.reduce((sum,c)=>sum+c.price,0);
+  const downEl = document.getElementById('co_fc_down');
+  const termEl = document.getElementById('co_fc_term');
+  const aprEl = document.getElementById('co_fc_apr');
+  const resultEl = document.getElementById('co_fc_monthly');
+  if(!downEl || !termEl || !aprEl || !resultEl) return;
+
+  const down = Math.max(0, Number(downEl.value) || 0);
+  const term = Number(termEl.value);
+  const apr = Math.max(0, Number(aprEl.value) || 0);
+  const principal = Math.max(0, total - down);
+  const monthlyRate = apr / 100 / 12;
+
+  let payment;
+  if(monthlyRate === 0){
+    payment = principal / term;
+  } else {
+    payment = principal * monthlyRate * Math.pow(1+monthlyRate, term) / (Math.pow(1+monthlyRate, term) - 1);
+  }
+  resultEl.textContent = `${fmtPrice(Math.round(payment))}/mo`;
 }
 function closeCheckout(){
   document.getElementById('checkoutOverlay').classList.remove('show');
@@ -444,24 +471,17 @@ function searchFromHome(){
 /* ---------- BRAND SHOWCASE ---------- */
 function buildBrandShowcase(){
   const brands = uniqueSorted(CARS.map(c=>c.brand));
-  const wrap = document.getElementById('brandGrid');
-  wrap.innerHTML = brands.map(b=>{
-    const carsForBrand = CARS.filter(c=>c.brand===b && c.img);
-    // pick up to 4 distinct photos for this brand, preferring daily-tier variety first
-    const seen = new Set();
-    const photos = [];
-    for(const c of carsForBrand){
+  document.getElementById('brandGrid').innerHTML = brands.map((b,i)=>{
+    const forBrand = CARS.filter(c=>c.brand===b && c.img);
+    const seen = new Set(); const photos = [];
+    for(const c of forBrand){
       if(!seen.has(c.img)){ seen.add(c.img); photos.push(c.img); }
       if(photos.length>=4) break;
     }
-    const imgsHtml = photos.map((url,i)=>`<img src="${url}" alt="${b}" loading="lazy" class="${i===0?'active':''}">`).join('');
-    return `<div class="brand-card" data-brand="${b}" onclick="showListing('${b}')">
-      ${imgsHtml}
-      <div class="overlay-grad"></div>
-      <div class="info">
-        <div class="bname">${b}</div>
-        <div class="bcount">${carsForBrand.length} model${carsForBrand.length!==1?'s':''}</div>
-      </div>
+    return `<div class="brand-card rv" data-d="${i%4}" onclick="showListing('${b}')">
+      ${photos.map((u,j)=>`<img src="${u}" alt="${b}" loading="lazy" class="${j===0?'on':''}">`).join('')}
+      <div class="veil"></div>
+      <div class="meta"><span class="bn">${b}</span><span class="bc">${forBrand.length}</span></div>
     </div>`;
   }).join('');
   observeGeneric('.brand-card');
@@ -479,10 +499,10 @@ function initBrandCardCycling(){
     if(imgs.length < 2) return;
     let idx = 0;
     const interval = setInterval(()=>{
-      imgs[idx].classList.remove('active');
+      imgs[idx].classList.remove('on');
       idx = (idx+1) % imgs.length;
-      imgs[idx].classList.add('active');
-    }, 3200 + (cardIndex % 4) * 400); // slight stagger so cards don't all flip in unison
+      imgs[idx].classList.add('on');
+    }, 3600 + (cardIndex % 5) * 420); // staggered so the grid never flips in unison
     brandCardIntervals.push(interval);
   });
 }
@@ -490,18 +510,16 @@ function initBrandCardCycling(){
 /* ---------- FEATURED FLAGSHIPS ---------- */
 const FLAGSHIP_IDS = ['rr-phantom','ferrari-296','porsche-911','tesla-s','toyota-land-cruiser','lexus-lc','bentley-continental','merc-maybach'];
 function buildFlagshipRow(){
-  const wrap = document.getElementById('flagshipRow');
   const cars = FLAGSHIP_IDS.map(id=>CARS.find(c=>c.id===id)).filter(Boolean);
-  wrap.innerHTML = cars.map(c=>`
-    <div class="flagship-card" onclick="goToCarFromHome('${c.id}')">
-      <div class="fimg">${carPhoto(c)}</div>
-      <div class="finfo">
-        <div class="fbrand">${c.brand}</div>
-        <div class="fmodel">${c.model}</div>
-        <div class="fprice">${fmtPrice(c.price)}</div>
+  document.getElementById('flagshipRow').innerHTML = cars.map(c=>`
+    <div class="rail-card" onclick="goToCarFromHome('${c.id}')">
+      <div class="ph">${carPhoto(c)}</div>
+      <div class="info">
+        <div class="rb">${c.brand}</div>
+        <div class="rm">${c.model}</div>
+        <div class="rp">${fmtPrice(c.price)}</div>
       </div>
     </div>`).join('');
-  observeGeneric('.flagship-card');
 }
 function goToCarFromHome(id){
   const c = CARS.find(x=>x.id===id);
@@ -514,29 +532,32 @@ function goToCarFromHome(id){
 
 /* ---------- TIER SPLIT ---------- */
 function buildTierSplit(){
-  const dailyCar = CARS.find(c=>c.id==='toy-camry') || CARS.find(c=>c.tier==='daily');
-  const luxuryCar = CARS.find(c=>c.id==='rr-ghost') || CARS.find(c=>c.tier==='luxury');
-  const wrap = document.getElementById('tierSplit');
-  wrap.innerHTML = `
-    <div class="tier-panel" onclick="goTier('daily')">
-      <img src="${dailyCar.img}" alt="">
-      <div class="overlay-grad"></div>
-      <div class="tinfo">
-        <div class="tkicker">Everyday lineup</div>
+  const dailyCar = CARS.find(c=>c.id==='toy-camry') || CARS.find(c=>c.tier==='daily' && c.img);
+  const luxuryCar = CARS.find(c=>c.id==='rr-ghost') || CARS.find(c=>c.tier==='luxury' && c.img);
+  const dailyCount = CARS.filter(c=>c.tier==='daily').length;
+  const luxCount = CARS.filter(c=>c.tier==='luxury').length;
+  document.getElementById('tierSplit').innerHTML = `
+    <div class="lane rv" onclick="goTier('daily')">
+      <div class="lane-media" data-par="0.14"><img src="${dailyCar.img}" alt="" loading="lazy"></div>
+      <div class="lane-veil"></div>
+      <div class="lane-body">
+        <div class="tag">${dailyCount} cars \u00b7 everyday lineup</div>
         <h3>Daily Drivers</h3>
-        <p>Toyota, Ford, Honda, Tesla and more — real cars for the daily commute.</p>
+        <p>Toyota, Ford, Honda, Tesla. The cars that start every morning without being asked twice.</p>
+        <div class="go">Browse daily</div>
       </div>
     </div>
-    <div class="tier-panel" onclick="goTier('luxury')">
-      <img src="${luxuryCar.img}" alt="">
-      <div class="overlay-grad"></div>
-      <div class="tinfo">
-        <div class="tkicker">By appointment</div>
+    <div class="lane rv" data-d="1" onclick="goTier('luxury')">
+      <div class="lane-media" data-par="0.14"><img src="${luxuryCar.img}" alt="" loading="lazy"></div>
+      <div class="lane-veil"></div>
+      <div class="lane-body">
+        <div class="tag">${luxCount} cars \u00b7 by appointment</div>
         <h3>Private Collection</h3>
-        <p>Rolls-Royce, Ferrari, Bentley and the flagship lines — no price is quiet about what it is.</p>
+        <p>Rolls-Royce, Ferrari, Bentley and the flagship lines. No price here is quiet about what it is.</p>
+        <div class="go">Browse private</div>
       </div>
-    </div>
-  `;
+    </div>`;
+  observeGeneric('.lane');
 }
 function goTier(tier){
   if(mode !== tier) toggleModeSilent(tier);
@@ -548,12 +569,12 @@ function observeGeneric(selector){
   const obs = new IntersectionObserver((entries)=>{
     entries.forEach(entry=>{
       if(entry.isIntersecting){
-        entry.target.classList.add('visible');
+        entry.target.classList.add('in');
         obs.unobserve(entry.target);
       }
     });
-  }, {threshold:0.1, rootMargin:'0px 0px -30px 0px'});
-  document.querySelectorAll(selector+':not(.visible)').forEach(el=>obs.observe(el));
+  }, {threshold:0.1, rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll(selector+':not(.in)').forEach(el=>obs.observe(el));
 }
 
 /* ---------- MOBILE MENU ---------- */
@@ -581,17 +602,17 @@ function renderHeroCarousel(){
   const photos = pickHeroPhotos(mode, 5);
   const el = document.getElementById('heroCarousel');
   heroIndex = 0;
-  el.innerHTML = photos.map((url,i)=>`<img src="${url}" class="${i===0?'active':''}" alt="">`).join('');
+  el.innerHTML = photos.map((url,i)=>`<img src="${url}" class="${i===0?'on':''}" alt="">`).join('');
   if(heroInterval) clearInterval(heroInterval);
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if(photos.length>1 && !reduceMotion){
     heroInterval = setInterval(()=>{
       const imgs = el.querySelectorAll('img');
       if(!imgs.length) return;
-      imgs[heroIndex].classList.remove('active');
+      imgs[heroIndex].classList.remove('on');
       heroIndex = (heroIndex+1) % imgs.length;
-      imgs[heroIndex].classList.add('active');
-    }, 5000);
+      imgs[heroIndex].classList.add('on');
+    }, 6000);
   }
 }
 
@@ -600,7 +621,7 @@ function buildTicker(){
   const brands = uniqueSorted(CARS.map(c=>c.brand));
   const track = document.getElementById('brandTicker');
   const items = brands.map(b=>`<span>${b}</span>`).join('');
-  track.innerHTML = items + items; // duplicate for seamless loop
+  track.innerHTML = items + items; // duplicated so the loop is seamless
 }
 
 /* ---------- ANIMATED STATS ---------- */
@@ -671,17 +692,93 @@ function observeCards(){
 }
 
 /* ---------- BOOT ---------- */
+
+/* ---------- FAQ ---------- */
+const FAQS = [
+  ['Does reserving a car cost anything?',
+   'No. A reservation request is a message, not a payment \u2014 nothing is charged on this site and no card details are ever collected. It tells us which car you want so we can hold the conversation and arrange a test drive.'],
+  ['Are the prices final?',
+   'Prices shown are indicative starting MSRP for the base configuration. Options, taxes, title and registration are not included. We confirm the exact out-the-door figure in writing before anything is signed.'],
+  ['Can I get financing through you?',
+   'Yes, and you can also bring your own. Tell us which you prefer when you reserve. The payment estimator on each car is a rough guide only \u2014 it is not a quote, and your real rate depends on credit approval.'],
+  ['Can I trade in my current car?',
+   'Yes. Mention it in the reservation message and we will appraise it when you come in. A trade-in offer is separate from the price of the car you are buying.'],
+  ['Do you deliver?',
+   'Within Ohio, yes. Outside it, we can arrange transport at cost. Either way we walk you through the car over video first so there are no surprises on the truck.'],
+  ['What if the car is gone by the time I arrive?',
+   'Inventory moves. Reserving is the fastest way to avoid that \u2014 it flags the car as spoken for while we are in touch with you.']
+];
+function buildFaq(){
+  const wrap = document.getElementById('faqList');
+  if(!wrap) return;
+  wrap.innerHTML = FAQS.map((f,i)=>`
+    <div class="faq-item" id="faq-${i}">
+      <button class="faq-q" onclick="toggleFaq(${i})" aria-expanded="false">
+        ${f[0]}<span class="pm">+</span>
+      </button>
+      <div class="faq-a"><p>${f[1]}</p></div>
+    </div>`).join('');
+}
+function toggleFaq(i){
+  const item = document.getElementById('faq-'+i);
+  const wasOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(el=>{
+    el.classList.remove('open');
+    const b = el.querySelector('.faq-q'); if(b) b.setAttribute('aria-expanded','false');
+  });
+  if(!wasOpen){
+    item.classList.add('open');
+    item.querySelector('.faq-q').setAttribute('aria-expanded','true');
+  }
+}
+
+/* ---------- VISIT PHOTO ---------- */
+function buildVisitMedia(){
+  const el = document.getElementById('visitMedia');
+  if(!el) return;
+  const c = CARS.find(x=>x.id==='porsche-911' && x.img) || CARS.find(x=>x.img);
+  if(c) el.innerHTML = `<img src="${c.img}" alt="" loading="lazy" data-par="0.1">`;
+}
+
+/* ---------- PARALLAX ----------
+   Elements with data-par drift slower than the page as it scrolls, so photos
+   read like a camera tracking past them rather than a flat background. */
+function initParallax(){
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const els = Array.from(document.querySelectorAll('[data-par]'));
+  if(!els.length) return;
+  let ticking = false;
+  function apply(){
+    const vh = window.innerHeight;
+    els.forEach(el=>{
+      const r = el.getBoundingClientRect();
+      if(r.bottom < -200 || r.top > vh + 200) return;
+      const mid = r.top + r.height/2;
+      const offset = (mid - vh/2) / vh;
+      const strength = parseFloat(el.dataset.par) || 0.12;
+      el.style.transform = `translate3d(0, ${(offset * strength * 100).toFixed(2)}px, 0)`;
+    });
+    ticking = false;
+  }
+  function onScroll(){
+    if(!ticking){ ticking = true; requestAnimationFrame(apply); }
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', onScroll, {passive:true});
+  apply();
+}
+
 /* ---------- REVEAL OBSERVER (generic sections) ---------- */
 function initRevealObserver(){
   const obs = new IntersectionObserver((entries)=>{
     entries.forEach(entry=>{
       if(entry.isIntersecting){
-        entry.target.classList.add('visible');
+        entry.target.classList.add('in');
         obs.unobserve(entry.target);
       }
     });
-  }, {threshold:0.15, rootMargin:'0px 0px -40px 0px'});
-  document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+  }, {threshold:0.12, rootMargin:'0px 0px -60px 0px'});
+  document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
 }
 
 /* ---------- BOOT (fetch live data from backend, fall back to bundled data) ---------- */
@@ -717,7 +814,10 @@ async function boot(){
   buildBrandShowcase();
   buildFlagshipRow();
   buildTierSplit();
+  buildFaq();
+  buildVisitMedia();
   initRevealObserver();
+  initParallax();
 }
 
 boot();

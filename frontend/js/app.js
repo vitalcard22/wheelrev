@@ -1,8 +1,7 @@
 /* ---------- API CONFIG ---------- */
 // Update this once the backend is deployed (e.g. your Fly.io URL).
 // Left as localhost for local development.
-const API_BASE = 'http://localhost:4000/api';
-
+const API_BASE = 'https://wheelrev-backend.fly.dev/api';
 /* ---------- DATA (live, populated by boot()) ---------- */
 let CARS = [];
 let GALLERY = {};

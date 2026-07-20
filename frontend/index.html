@@ -17,6 +17,7 @@
   <nav>
     <a onclick="showListing()">Browse</a>
     <a onclick="openModal()">Compare (<span id="navCompareCount">0</span>)</a>
+    <a onclick="openCheckout()">Cart (<span id="navCartCount">0</span>)</a>
     <a id="backToHome" onclick="showHome()">&larr; Home</a>
   </nav>
   <div class="toggle-wrap">
@@ -35,6 +36,7 @@
   <a onclick="showHome(); closeMobileMenu();">Home</a>
   <a onclick="showListing(); closeMobileMenu();">Browse</a>
   <a onclick="openModal(); closeMobileMenu();">Compare (<span id="navCompareCountMobile">0</span>)</a>
+  <a onclick="openCheckout(); closeMobileMenu();">Cart (<span id="navCartCountMobile">0</span>)</a>
 </div>
 
 <div id="homeView">
@@ -132,11 +134,57 @@
   <button class="go" onclick="openModal()">Compare now</button>
 </div>
 
+<div class="cartbar" id="cartbar">
+  <div class="slots" id="cartSlots"></div>
+  <button class="go cart-go" onclick="openCheckout()">Reserve now</button>
+</div>
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <button class="close" onclick="closeModal()">&times;</button>
     <h2 class="display">Side by side</h2>
     <div id="compareTableWrap"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="checkoutOverlay">
+  <div class="modal checkout-modal">
+    <button class="close" onclick="closeCheckout()">&times;</button>
+
+    <div id="checkoutForm">
+      <h2 class="display">Reserve your car</h2>
+      <p class="checkout-note">This sends a reservation request — no payment is collected here. A member of the team will follow up to complete the purchase.</p>
+      <div id="checkoutItems" class="checkout-items"></div>
+      <div class="checkout-total-row">
+        <span>Total</span>
+        <span class="mono" id="checkoutTotal"></span>
+      </div>
+
+      <div class="field"><label>Full name</label><input id="co_name" placeholder="Jane Smith"></div>
+      <div class="field-row">
+        <div class="field"><label>Email</label><input id="co_email" type="email" placeholder="you@example.com"></div>
+        <div class="field"><label>Phone (optional)</label><input id="co_phone" placeholder="(555) 123-4567"></div>
+      </div>
+      <div class="field">
+        <label>Financing preference</label>
+        <select id="co_financing">
+          <option value="">Not sure yet</option>
+          <option value="cash">Paying in cash</option>
+          <option value="financing">Financing through the dealer</option>
+          <option value="lease">Lease</option>
+          <option value="own-financing">Bringing my own financing</option>
+        </select>
+      </div>
+      <div class="field"><label>Message (optional)</label><input id="co_message" placeholder="Anything else we should know?"></div>
+      <div id="checkoutError" class="checkout-error"></div>
+      <button class="btn-primary checkout-submit" id="checkoutSubmitBtn" onclick="submitCheckout()">Submit reservation</button>
+    </div>
+
+    <div id="checkoutSuccess" style="display:none;">
+      <h2 class="display">Request received</h2>
+      <p class="checkout-note">Thanks — someone from the team will reach out shortly to complete your reservation. No payment has been taken.</p>
+      <button class="btn-primary checkout-submit" onclick="closeCheckout()">Done</button>
+    </div>
   </div>
 </div>
 

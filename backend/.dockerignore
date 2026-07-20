@@ -1,6 +1,4 @@
-/.git
-/node_modules
-.dockerignore
+node_modules
 .env
-Dockerfile
-fly.toml
+.env.example
+npm-debug.log

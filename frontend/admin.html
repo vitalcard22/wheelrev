@@ -32,6 +32,17 @@
   #gateError{ color:var(--danger); font-size:13px; margin-top:10px; min-height:18px; }
 
   /* TOOLBAR */
+  .tabs{ display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--line); }
+  .tab-btn{
+    padding:10px 18px; border:none; background:none; font-family:inherit; font-size:14px; font-weight:600;
+    color:var(--mute); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tab-btn.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .orders-badge{
+    display:inline-block; background:var(--danger); color:#fff; font-size:10px; padding:1px 7px; border-radius:10px; margin-left:4px;
+  }
+  .order-status{ padding:6px 10px; border-radius:6px; border:1px solid var(--line); font-family:inherit; font-size:12px; background:var(--surface); }
+  td.order-msg{ max-width:220px; font-size:12.5px; color:var(--mute); }
   .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
   .toolbar input{ padding:10px 14px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; min-width:220px; }
   .btn{ padding:11px 20px; border-radius:8px; border:none; font-weight:600; font-size:13px; cursor:pointer; font-family:inherit; }
@@ -85,15 +96,30 @@
     <a href="index.html">&larr; Back to site</a>
   </header>
   <div class="wrap">
-    <div class="toolbar">
-      <input type="text" id="searchBox" placeholder="Search by brand or model..." oninput="renderTable()">
-      <div style="display:flex; gap:10px; align-items:center;">
-        <span class="source-tag" id="sourceTag"></span>
-        <button class="btn btn-secondary" onclick="loadCars()">Refresh</button>
-        <button class="btn btn-primary" onclick="openForm()">+ Add car</button>
-      </div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tabCarsBtn" onclick="switchTab('cars')">Cars</button>
+      <button class="tab-btn" id="tabOrdersBtn" onclick="switchTab('orders')">Reservations <span id="ordersBadge" class="orders-badge" style="display:none;"></span></button>
     </div>
-    <div id="tableWrap"></div>
+
+    <div id="carsTab">
+      <div class="toolbar">
+        <input type="text" id="searchBox" placeholder="Search by brand or model..." oninput="renderTable()">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span class="source-tag" id="sourceTag"></span>
+          <button class="btn btn-secondary" onclick="loadCars()">Refresh</button>
+          <button class="btn btn-primary" onclick="openForm()">+ Add car</button>
+        </div>
+      </div>
+      <div id="tableWrap"></div>
+    </div>
+
+    <div id="ordersTab" style="display:none;">
+      <div class="toolbar">
+        <span style="font-size:13px; color:var(--mute);">Reservation requests submitted from the site — no payment collected, follow up directly.</span>
+        <button class="btn btn-secondary" onclick="loadOrders()">Refresh</button>
+      </div>
+      <div id="ordersWrap"></div>
+    </div>
   </div>
 </div>
 
@@ -132,7 +158,8 @@
 <div id="toast"></div>
 
 <script>
-const API_BASE = 'https://wheelrev-backend.fly.dev/api';let adminToken = '';
+const API_BASE = 'https://wheelrev-backend.fly.dev/api';
+let adminToken = '';
 let cars = [];
 let editingId = null;
 
@@ -144,6 +171,7 @@ function unlock(){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
   loadCars();
+  checkNewOrdersBadge();
 }
 
 // auto-unlock if already entered this session
@@ -154,7 +182,85 @@ if(savedToken){
     document.getElementById('gate').style.display = 'none';
     document.getElementById('adminApp').style.display = 'block';
     loadCars();
+    checkNewOrdersBadge();
   });
+}
+
+function switchTab(tab){
+  document.getElementById('carsTab').style.display = tab==='cars' ? 'block' : 'none';
+  document.getElementById('ordersTab').style.display = tab==='orders' ? 'block' : 'none';
+  document.getElementById('tabCarsBtn').classList.toggle('active', tab==='cars');
+  document.getElementById('tabOrdersBtn').classList.toggle('active', tab==='orders');
+  if(tab==='orders') loadOrders();
+}
+
+let orders = [];
+async function loadOrders(){
+  document.getElementById('ordersWrap').innerHTML = '<div class="empty-state">Loading...</div>';
+  try{
+    const res = await fetch(`${API_BASE}/orders`, {headers:{'x-admin-token': adminToken}});
+    const json = await res.json();
+    if(!res.ok){
+      document.getElementById('ordersWrap').innerHTML = `<div class="empty-state">${json.error || 'Could not load reservations.'}</div>`;
+      return;
+    }
+    orders = json.orders;
+    renderOrders();
+  } catch(err){
+    document.getElementById('ordersWrap').innerHTML = '<div class="empty-state">Could not reach the backend.</div>';
+  }
+}
+
+function renderOrders(){
+  const wrap = document.getElementById('ordersWrap');
+  if(!orders.length){
+    wrap.innerHTML = '<div class="empty-state">No reservation requests yet.</div>';
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <tr><th>Date</th><th>Customer</th><th>Contact</th><th>Car</th><th>Price</th><th>Financing</th><th>Message</th><th>Status</th></tr>
+    ${orders.map(o => `
+      <tr>
+        <td>${new Date(o.created_at).toLocaleDateString()}</td>
+        <td>${o.customer_name}</td>
+        <td>${o.customer_email}${o.customer_phone ? '<br>'+o.customer_phone : ''}</td>
+        <td>${o.car_brand} ${o.car_model}</td>
+        <td class="price">$${(o.car_price||0).toLocaleString('en-US')}</td>
+        <td>${o.financing_pref || '—'}</td>
+        <td class="order-msg">${o.message || '—'}</td>
+        <td><select class="order-status" onchange="updateOrderStatus(${o.id}, this.value)">
+          ${['new','contacted','closed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}
+        </select></td>
+      </tr>
+    `).join('')}
+  </table>`;
+}
+
+async function updateOrderStatus(id, status){
+  try{
+    const res = await fetch(`${API_BASE}/orders/${id}`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json', 'x-admin-token': adminToken},
+      body: JSON.stringify({status})
+    });
+    if(!res.ok){ showToast('Could not update status.'); return; }
+    showToast('Status updated.');
+    checkNewOrdersBadge();
+  } catch(err){
+    showToast('Could not reach the backend.');
+  }
+}
+
+async function checkNewOrdersBadge(){
+  try{
+    const res = await fetch(`${API_BASE}/orders`, {headers:{'x-admin-token': adminToken}});
+    const json = await res.json();
+    if(!res.ok) return;
+    const newCount = json.orders.filter(o=>o.status==='new').length;
+    const badge = document.getElementById('ordersBadge');
+    if(newCount > 0){ badge.textContent = newCount; badge.style.display = 'inline-block'; }
+    else { badge.style.display = 'none'; }
+  } catch(err){ /* silent — badge just won't show */ }
 }
 
 function showToast(msg){

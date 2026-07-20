@@ -2,6 +2,7 @@
 // Update this once the backend is deployed (e.g. your Fly.io URL).
 // Left as localhost for local development.
 const API_BASE = 'https://wheelrev-backend.fly.dev/api';
+
 /* ---------- DATA (live, populated by boot()) ---------- */
 let CARS = [];
 let GALLERY = {};
@@ -11,6 +12,7 @@ let usingFallbackData = false;
 let mode = 'daily'; // 'daily' | 'luxury'
 let activeBrandChip = '';
 let compareIds = [];
+let cartIds = [];
 
 /* ---------- INIT ---------- */
 function uniqueSorted(arr){ return [...new Set(arr)].sort(); }
@@ -115,6 +117,7 @@ function renderGrid(){
 
   grid.innerHTML = list.map((c,i)=>{
     const inCompare = compareIds.includes(c.id);
+    const inCart = cartIds.includes(c.id);
     return `
     <div class="card" style="transition-delay:${Math.min(i%12,12)*40}ms" onclick="openPanel('${c.id}')">
       <div class="art">${carPhoto(c)}</div>
@@ -126,7 +129,10 @@ function renderGrid(){
       <div class="meta">${c.year} &middot; ${c.hp} hp &middot; ${c.drivetrain}</div>
       <div class="priceline">
         <div class="price">${fmtPrice(c.price)}<br><small>starting MSRP</small></div>
-        <button class="compare-btn ${inCompare?'on':''}" onclick="event.stopPropagation(); toggleCompare('${c.id}')">${inCompare? '✓ Added' : '+ Compare'}</button>
+        <div class="card-actions">
+          <button class="cart-btn ${inCart?'on':''}" onclick="event.stopPropagation(); toggleCart('${c.id}')" title="Reserve this car">${inCart? '✓ Reserved' : 'Reserve'}</button>
+          <button class="compare-btn ${inCompare?'on':''}" onclick="event.stopPropagation(); toggleCompare('${c.id}')">${inCompare? '✓ Added' : '+ Compare'}</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -163,6 +169,7 @@ function openPanel(id){
   const overlay = document.getElementById('overlay');
   const panel = document.getElementById('panel');
   const inCompare = compareIds.includes(c.id);
+  const inCart = cartIds.includes(c.id);
 
   const crossoverNote = CROSSOVER_BRANDS.includes(c.brand)
     ? `<div class="also">${c.brand} also builds ${c.tier==='luxury' ? 'more attainable everyday models — switch to <b>Daily Drivers</b> to see them.' : 'flagship models in the private collection — switch to <b>Private Collection</b> to see them.'}</div>`
@@ -186,6 +193,7 @@ function openPanel(id){
     </div>
     <div class="bigprice mono">${fmtPrice(c.price)}</div>
     ${crossoverNote}
+    <button class="reserve-btn ${inCart?'on':''}" onclick="toggleCart('${c.id}', true)">${inCart? '✓ In your cart' : 'Reserve this car'}</button>
     <button class="add-compare ${inCompare?'on':''}" onclick="toggleCompare('${c.id}', true)">${inCompare? '✓ Added to compare' : '+ Add to compare'}</button>
   `;
   overlay.classList.add('show');
@@ -247,6 +255,100 @@ function openModal(){
 }
 function closeModal(){ document.getElementById('modalOverlay').classList.remove('show'); }
 
+/* ---------- CART / RESERVE ---------- */
+function toggleCart(id, fromPanel){
+  const idx = cartIds.indexOf(id);
+  if(idx>-1){ cartIds.splice(idx,1); }
+  else { cartIds.push(id); }
+  renderGrid();
+  renderCartBar();
+  if(fromPanel) openPanel(id);
+  const cartCount = document.getElementById('navCartCount');
+  if(cartCount) cartCount.textContent = cartIds.length;
+  const cartCountMobile = document.getElementById('navCartCountMobile');
+  if(cartCountMobile) cartCountMobile.textContent = cartIds.length;
+}
+
+function renderCartBar(){
+  const bar = document.getElementById('cartbar');
+  const slots = document.getElementById('cartSlots');
+  if(!bar) return;
+  if(cartIds.length===0){ bar.classList.remove('show'); return; }
+  bar.classList.add('show');
+  slots.innerHTML = cartIds.map(id=>{
+    const c = CARS.find(x=>x.id===id);
+    return `<div class="slot">${c.brand} ${c.model} <button onclick="toggleCart('${id}')">&times;</button></div>`;
+  }).join('');
+}
+
+function openCheckout(){
+  if(cartIds.length===0) return;
+  const cars = cartIds.map(id=>CARS.find(x=>x.id===id));
+  const total = cars.reduce((sum,c)=>sum+c.price,0);
+  document.getElementById('checkoutItems').innerHTML = cars.map(c=>`
+    <div class="checkout-item">
+      <span>${c.brand} ${c.model}</span>
+      <span class="mono">${fmtPrice(c.price)}</span>
+    </div>`).join('');
+  document.getElementById('checkoutTotal').textContent = fmtPrice(total);
+  document.getElementById('checkoutForm').style.display = 'block';
+  document.getElementById('checkoutSuccess').style.display = 'none';
+  document.getElementById('checkoutError').textContent = '';
+  document.getElementById('checkoutOverlay').classList.add('show');
+}
+function closeCheckout(){
+  document.getElementById('checkoutOverlay').classList.remove('show');
+}
+
+async function submitCheckout(){
+  const name = document.getElementById('co_name').value.trim();
+  const email = document.getElementById('co_email').value.trim();
+  const phone = document.getElementById('co_phone').value.trim();
+  const financing = document.getElementById('co_financing').value;
+  const message = document.getElementById('co_message').value.trim();
+  const errEl = document.getElementById('checkoutError');
+
+  if(!name || !email){
+    errEl.textContent = 'Name and email are required.';
+    return;
+  }
+
+  const items = cartIds.map(id=>{
+    const c = CARS.find(x=>x.id===id);
+    return {id: c.id, brand: c.brand, model: c.model, price: c.price};
+  });
+
+  const btn = document.getElementById('checkoutSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  try{
+    const res = await fetch(`${API_BASE}/orders`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({items, name, email, phone, financing, message})
+    });
+    const json = await res.json();
+    if(!res.ok){
+      errEl.textContent = json.error || 'Something went wrong. Please try again.';
+      btn.disabled = false;
+      btn.textContent = 'Submit reservation';
+      return;
+    }
+    document.getElementById('checkoutForm').style.display = 'none';
+    document.getElementById('checkoutSuccess').style.display = 'block';
+    cartIds = [];
+    renderGrid();
+    renderCartBar();
+    const cartCount = document.getElementById('navCartCount');
+    if(cartCount) cartCount.textContent = 0;
+  } catch(err){
+    errEl.textContent = 'Could not reach the server. Check your connection and try again.';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Submit reservation';
+}
+
 /* ---------- VIEW SWITCHING ---------- */
 function showHome(){
   document.getElementById('homeView').style.display = 'block';
@@ -294,11 +396,17 @@ function buildBrandShowcase(){
   const brands = uniqueSorted(CARS.map(c=>c.brand));
   const wrap = document.getElementById('brandGrid');
   wrap.innerHTML = brands.map(b=>{
-    const carsForBrand = CARS.filter(c=>c.brand===b);
-    const rep = carsForBrand.find(c=>c.tier==='daily' && c.img) || carsForBrand.find(c=>c.img) || carsForBrand[0];
-    const img = rep && rep.img ? rep.img : '';
-    return `<div class="brand-card" onclick="showListing('${b}')">
-      ${img ? `<img src="${img}" alt="${b}" loading="lazy">` : ''}
+    const carsForBrand = CARS.filter(c=>c.brand===b && c.img);
+    // pick up to 4 distinct photos for this brand, preferring daily-tier variety first
+    const seen = new Set();
+    const photos = [];
+    for(const c of carsForBrand){
+      if(!seen.has(c.img)){ seen.add(c.img); photos.push(c.img); }
+      if(photos.length>=4) break;
+    }
+    const imgsHtml = photos.map((url,i)=>`<img src="${url}" alt="${b}" loading="lazy" class="${i===0?'active':''}">`).join('');
+    return `<div class="brand-card" data-brand="${b}" onclick="showListing('${b}')">
+      ${imgsHtml}
       <div class="overlay-grad"></div>
       <div class="info">
         <div class="bname">${b}</div>
@@ -307,6 +415,26 @@ function buildBrandShowcase(){
     </div>`;
   }).join('');
   observeGeneric('.brand-card');
+  initBrandCardCycling();
+}
+
+let brandCardIntervals = [];
+function initBrandCardCycling(){
+  brandCardIntervals.forEach(clearInterval);
+  brandCardIntervals = [];
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduceMotion) return;
+  document.querySelectorAll('.brand-card').forEach((card, cardIndex)=>{
+    const imgs = card.querySelectorAll('img');
+    if(imgs.length < 2) return;
+    let idx = 0;
+    const interval = setInterval(()=>{
+      imgs[idx].classList.remove('active');
+      idx = (idx+1) % imgs.length;
+      imgs[idx].classList.add('active');
+    }, 3200 + (cardIndex % 4) * 400); // slight stagger so cards don't all flip in unison
+    brandCardIntervals.push(interval);
+  });
 }
 
 /* ---------- FEATURED FLAGSHIPS ---------- */

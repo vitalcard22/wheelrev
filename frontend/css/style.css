@@ -317,6 +317,21 @@
   .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   @media(max-width:480px){ .field-row{ grid-template-columns:1fr; } }
 
+  /* FINANCE CALCULATOR */
+  .finance-calc{
+    background:var(--accent-soft); border-radius:12px; padding:18px; margin-bottom:16px;
+  }
+  .finance-calc-head{ font-size:13px; font-weight:600; color:var(--accent); margin-bottom:14px; text-transform:uppercase; letter-spacing:.04em; }
+  .finance-calc .field{ margin-bottom:12px; }
+  .finance-calc .field label{ color:var(--mute); }
+  .finance-calc .field input, .finance-calc .field select{ background:var(--surface); }
+  .finance-result{
+    display:flex; justify-content:space-between; align-items:center; padding:12px 0; margin-top:6px;
+    border-top:1px solid rgba(0,0,0,.08); font-weight:600; font-size:16px;
+  }
+  .finance-result .mono{ color:var(--accent); font-size:20px; }
+  .finance-disclaimer{ font-size:11px; color:var(--mute); line-height:1.4; margin-top:4px; }
+
   /* COMPARE MODAL */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:100; display:none;

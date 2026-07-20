@@ -193,15 +193,65 @@ function openPanel(id){
     </div>
     <div class="bigprice mono">${fmtPrice(c.price)}</div>
     ${crossoverNote}
+
+    <div class="finance-calc">
+      <div class="finance-calc-head">Estimate your payment</div>
+      <div class="field-row">
+        <div class="field"><label>Down payment</label><input type="number" id="fc_down" value="${Math.round(c.price*0.1)}" min="0" oninput="updateFinanceCalc(${c.price})"></div>
+        <div class="field">
+          <label>Loan term</label>
+          <select id="fc_term" onchange="updateFinanceCalc(${c.price})">
+            <option value="36">36 months</option>
+            <option value="48">48 months</option>
+            <option value="60" selected>60 months</option>
+            <option value="72">72 months</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Estimated APR (%)</label>
+        <input type="number" id="fc_apr" value="6.9" step="0.1" min="0" oninput="updateFinanceCalc(${c.price})">
+      </div>
+      <div class="finance-result">
+        <span>Estimated payment</span>
+        <span class="mono" id="fc_monthly">$0/mo</span>
+      </div>
+      <div class="finance-disclaimer">Estimate only, not a loan offer. Your actual rate depends on credit approval and lender terms.</div>
+    </div>
+
     <button class="reserve-btn ${inCart?'on':''}" onclick="toggleCart('${c.id}', true)">${inCart? '✓ In your cart' : 'Reserve this car'}</button>
     <button class="add-compare ${inCompare?'on':''}" onclick="toggleCompare('${c.id}', true)">${inCompare? '✓ Added to compare' : '+ Add to compare'}</button>
   `;
   overlay.classList.add('show');
   panel.classList.add('show');
+  updateFinanceCalc(c.price);
 }
 function closePanel(){
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('panel').classList.remove('show');
+}
+
+/* ---------- FINANCING CALCULATOR ---------- */
+function updateFinanceCalc(price){
+  const downEl = document.getElementById('fc_down');
+  const termEl = document.getElementById('fc_term');
+  const aprEl = document.getElementById('fc_apr');
+  const resultEl = document.getElementById('fc_monthly');
+  if(!downEl || !termEl || !aprEl || !resultEl) return;
+
+  const down = Math.max(0, Number(downEl.value) || 0);
+  const term = Number(termEl.value);
+  const apr = Math.max(0, Number(aprEl.value) || 0);
+  const principal = Math.max(0, price - down);
+  const monthlyRate = apr / 100 / 12;
+
+  let payment;
+  if(monthlyRate === 0){
+    payment = principal / term;
+  } else {
+    payment = principal * monthlyRate * Math.pow(1+monthlyRate, term) / (Math.pow(1+monthlyRate, term) - 1);
+  }
+  resultEl.textContent = `${fmtPrice(Math.round(payment))}/mo`;
 }
 
 /* ---------- COMPARE ---------- */

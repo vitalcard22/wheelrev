@@ -337,13 +337,25 @@ function openCheckout(){
   if(cartIds.length===0) return;
   const cars = cartIds.map(id=>CARS.find(x=>x.id===id));
   const total = cars.reduce((sum,c)=>sum+c.price,0);
+
+  // render car items with photos
   document.getElementById('checkoutItems').innerHTML = cars.map(c=>`
-    <div class="checkout-item">
-      <span>${c.brand} ${c.model}</span>
-      <span class="mono">${fmtPrice(c.price)}</span>
+    <div class="checkout-car-item">
+      <div class="thumb">${c.img ? `<img src="${c.img}" alt="">` : ''}</div>
+      <div class="detail">
+        <div class="cn">${c.brand} ${c.model}</div>
+        <div class="cm">${c.year} · ${c.hp} hp · ${c.drivetrain}</div>
+      </div>
+      <div class="cp">${fmtPrice(c.price)}</div>
     </div>`).join('');
+
   document.getElementById('checkoutTotal').textContent = fmtPrice(total);
   document.getElementById('co_fc_down').value = Math.round(total*0.1);
+  // set min date to today
+  const today = new Date().toISOString().split('T')[0];
+  const dateEl = document.getElementById('co_date');
+  if(dateEl) dateEl.min = today;
+
   document.getElementById('checkoutForm').style.display = 'block';
   document.getElementById('checkoutSuccess').style.display = 'none';
   document.getElementById('checkoutError').textContent = '';
@@ -374,15 +386,31 @@ function updateCheckoutFinanceCalc(){
   resultEl.textContent = `${fmtPrice(Math.round(payment))}/mo`;
 }
 function closeCheckout(){
-  document.getElementById('checkoutOverlay').classList.remove('show');
+  const overlay = document.getElementById('checkoutOverlay');
+  // cancel any pending Stripe redirect if modal is closed early
+  if(overlay.dataset.pendingRedirect){
+    clearTimeout(Number(overlay.dataset.pendingRedirect));
+    delete overlay.dataset.pendingRedirect;
+  }
+  overlay.classList.remove('show');
 }
 
-async function submitCheckout(){
+// STRIPE_DEPOSIT_URL: paste your real Stripe payment link here once you create one
+// at stripe.com → Products → Payment links. The link should be for a $500 deposit product.
+const STRIPE_DEPOSIT_URL = 'https://buy.stripe.com/YOUR_LINK_HERE';
+
+async function submitCheckout(withDeposit = false){
   const name = document.getElementById('co_name').value.trim();
   const email = document.getElementById('co_email').value.trim();
   const phone = document.getElementById('co_phone').value.trim();
   const financing = document.getElementById('co_financing').value;
   const message = document.getElementById('co_message').value.trim();
+  const apptDate = document.getElementById('co_date')?.value || '';
+  const apptTime = document.getElementById('co_time')?.value || '';
+  const tiYear = document.getElementById('co_ti_year')?.value || '';
+  const tiMake = document.getElementById('co_ti_make')?.value.trim() || '';
+  const tiModel = document.getElementById('co_ti_model')?.value.trim() || '';
+  const tiMiles = document.getElementById('co_ti_miles')?.value.trim() || '';
   const errEl = document.getElementById('checkoutError');
 
   if(!name || !email){
@@ -390,12 +418,22 @@ async function submitCheckout(){
     return;
   }
 
+  // Build a rich message string that includes appointment + trade-in details
+  const extras = [];
+  if(apptDate) extras.push(`Appointment: ${apptDate}${apptTime ? ' ' + apptTime : ''}`);
+  if(tiMake || tiModel) extras.push(`Trade-in: ${tiYear} ${tiMake} ${tiModel}${tiMiles ? ' (' + tiMiles + ' miles)' : ''}`);
+  if(message) extras.push(message);
+  const fullMessage = extras.join(' | ') || null;
+
   const items = cartIds.map(id=>{
     const c = CARS.find(x=>x.id===id);
     return {id: c.id, brand: c.brand, model: c.model, price: c.price};
   });
 
-  const btn = document.getElementById('checkoutSubmitBtn');
+  const btn = withDeposit
+    ? document.getElementById('checkoutDepositBtn')
+    : document.getElementById('checkoutSubmitBtn');
+  const origText = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Submitting...';
 
@@ -403,27 +441,48 @@ async function submitCheckout(){
     const res = await fetch(`${API_BASE}/orders`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({items, name, email, phone, financing, message})
+      body: JSON.stringify({items, name, email, phone, financing, message: fullMessage})
     });
     const json = await res.json();
     if(!res.ok){
       errEl.textContent = json.error || 'Something went wrong. Please try again.';
       btn.disabled = false;
-      btn.textContent = 'Submit reservation';
+      btn.textContent = origText;
       return;
+    }
+
+    // Show success screen with order reference
+    const refEl = document.getElementById('checkoutRef');
+    if(refEl && json.orderIds && json.orderIds.length){
+      refEl.textContent = `Reference: WR-${String(json.orderIds[0]).padStart(5,'0')}`;
     }
     document.getElementById('checkoutForm').style.display = 'none';
     document.getElementById('checkoutSuccess').style.display = 'block';
+
+    // Clear cart
     cartIds = [];
     renderGrid();
     renderCartBar();
-    const cartCount = document.getElementById('navCartCount');
-    if(cartCount) cartCount.textContent = 0;
+    ['navCartCount','navCartCountMobile'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.textContent = 0;
+    });
+
+    // Redirect to Stripe if deposit was chosen
+    if(withDeposit){
+      if(STRIPE_DEPOSIT_URL.includes('YOUR_LINK_HERE')){
+        if(refEl) refEl.textContent = (refEl.textContent ? refEl.textContent + ' · ' : '') + 'Stripe not yet configured — contact us directly to pay the deposit.';
+      } else {
+        const redirectTimer = setTimeout(()=>{ window.location.href = STRIPE_DEPOSIT_URL; }, 1800);
+        // cancel redirect if modal is closed before it fires
+        document.getElementById('checkoutOverlay').dataset.pendingRedirect = redirectTimer;
+      }
+    }
   } catch(err){
     errEl.textContent = 'Could not reach the server. Check your connection and try again.';
+    btn.disabled = false;
+    btn.textContent = origText;
   }
-  btn.disabled = false;
-  btn.textContent = 'Submit reservation';
 }
 
 /* ---------- VIEW SWITCHING ---------- */
